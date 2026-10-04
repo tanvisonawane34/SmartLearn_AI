@@ -11,7 +11,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from xml.sax.saxutils import escape
 
-# NEW: YouTube transcript
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
@@ -25,6 +24,7 @@ st.set_page_config(
     layout="wide"
 )
 
+
 # =========================================================
 # CUSTOM UI STYLE
 # =========================================================
@@ -32,10 +32,6 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* =====================================================
-       SMARTLEARN AI - PRESENTATION THEME
-       Lavender + Purple + Teal + Warm Gold
-       ===================================================== */
 
     .main-title {
         padding: 34px 30px;
@@ -189,7 +185,6 @@ st.markdown(
         line-height: 1.7;
     }
 
-    /* Streamlit controls */
     div.stButton > button {
         border-radius: 11px;
         border: 1px solid #D7CFE8;
@@ -252,10 +247,12 @@ st.markdown(
     hr {
         border-color: #E0DAE7;
     }
+
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 # =========================================================
 # SESSION STATE
@@ -276,6 +273,7 @@ if "mcqs" not in st.session_state:
 if "revision" not in st.session_state:
     st.session_state["revision"] = None
 
+
 # =========================================================
 # SIDEBAR
 # =========================================================
@@ -283,7 +281,9 @@ if "revision" not in st.session_state:
 with st.sidebar:
 
     st.title("🎓 SmartLearn AI")
-    st.caption("Video Summarization & Intelligent Notes Generator")
+    st.caption(
+        "Video Summarization & Intelligent Notes Generator"
+    )
 
     st.divider()
 
@@ -293,22 +293,27 @@ with st.sidebar:
         '<div class="feature-card">🎙️ Speech-to-Text</div>',
         unsafe_allow_html=True
     )
+
     st.markdown(
         '<div class="feature-card">✨ AI Summary</div>',
         unsafe_allow_html=True
     )
+
     st.markdown(
         '<div class="feature-card">📚 Intelligent Notes</div>',
         unsafe_allow_html=True
     )
+
     st.markdown(
         '<div class="feature-card">🧠 MCQs</div>',
         unsafe_allow_html=True
     )
+
     st.markdown(
         '<div class="feature-card">📄 PDF Study Material</div>',
         unsafe_allow_html=True
     )
+
     st.markdown(
         '<div class="feature-card">🎯 Exam Revision</div>',
         unsafe_allow_html=True
@@ -317,15 +322,33 @@ with st.sidebar:
     st.divider()
 
     st.markdown("### 🔄 How It Works")
-    st.write("1. Upload a video or paste a YouTube link")
-    st.write("2. Generate the transcript")
-    st.write("3. Generate summary and notes")
-    st.write("4. Generate MCQs")
-    st.write("5. Download study material as PDF")
+
+    st.write(
+        "1. Upload a video or paste a YouTube link"
+    )
+
+    st.write(
+        "2. Generate the transcript"
+    )
+
+    st.write(
+        "3. Generate summary and notes"
+    )
+
+    st.write(
+        "4. Generate MCQs"
+    )
+
+    st.write(
+        "5. Download study material as PDF"
+    )
 
     st.divider()
 
-    st.caption("AI-powered educational learning assistant")
+    st.caption(
+        "AI-powered educational learning assistant"
+    )
+
 
 # =========================================================
 # MAIN HEADER
@@ -345,12 +368,16 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
 if st.button(
     "🔄 Start New Lecture",
     use_container_width=True
 ):
+
     st.session_state.clear()
+
     st.rerun()
+
 
 st.markdown(
     """
@@ -373,6 +400,7 @@ st.markdown(
 
 st.divider()
 
+
 # =========================================================
 # WHISPER
 # =========================================================
@@ -392,9 +420,13 @@ def load_summarizer():
 
     model_name = "sshleifer/distilbart-cnn-12-6"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name
+    )
 
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(
+        model_name
+    )
 
     return tokenizer, model
 
@@ -408,11 +440,138 @@ def load_question_model():
 
     model_name = "valhalla/t5-small-qg-hl"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name
+    )
 
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(
+        model_name
+    )
 
     return tokenizer, model
+
+
+# =========================================================
+# YOUTUBE VIDEO ID
+# =========================================================
+
+def get_youtube_video_id(url):
+
+    patterns = [
+
+        r"(?:v=)([A-Za-z0-9_-]{11})",
+
+        r"(?:youtu\.be/)([A-Za-z0-9_-]{11})",
+
+        r"(?:youtube\.com/shorts/)([A-Za-z0-9_-]{11})",
+
+        r"(?:youtube\.com/embed/)([A-Za-z0-9_-]{11})"
+
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            url
+        )
+
+        if match:
+
+            return match.group(1)
+
+    return None
+
+
+# =========================================================
+# GET YOUTUBE TRANSCRIPT
+# =========================================================
+
+def get_youtube_transcript(video_id):
+
+    youtube_api = YouTubeTranscriptApi()
+
+    # -----------------------------------------------------
+    # First try preferred languages
+    # -----------------------------------------------------
+
+    preferred_languages = [
+        "en",
+        "hi",
+        "mr"
+    ]
+
+    try:
+
+        fetched = youtube_api.fetch(
+            video_id,
+            languages=preferred_languages
+        )
+
+        transcript = " ".join(
+            snippet.text
+            for snippet in fetched
+        )
+
+        if transcript.strip():
+
+            return transcript.strip()
+
+    except Exception:
+
+        pass
+
+    # -----------------------------------------------------
+    # If preferred languages fail,
+    # check all available transcripts
+    # -----------------------------------------------------
+
+    try:
+
+        transcript_list = youtube_api.list(
+            video_id
+        )
+
+        available = list(
+            transcript_list
+        )
+
+        if not available:
+
+            return None
+
+        selected = None
+
+        # Prefer manually created transcript
+        for item in available:
+
+            if not item.is_generated:
+
+                selected = item
+
+                break
+
+        # Otherwise use first available transcript
+        if selected is None:
+
+            selected = available[0]
+
+        fetched = selected.fetch()
+
+        transcript = " ".join(
+            snippet.text
+            for snippet in fetched
+        )
+
+        if transcript.strip():
+
+            return transcript.strip()
+
+    except Exception:
+
+        return None
+
+    return None
 
 
 # =========================================================
@@ -425,51 +584,141 @@ def make_question(
     sentence
 ):
 
+    sentence = sentence.strip()
+
+    if len(sentence.split()) < 6:
+
+        return None, None
+
+    words = sentence.split()
+
     answer = None
 
-    patterns = [
+    # -----------------------------------------------------
+    # Look for useful technical terms
+    # -----------------------------------------------------
 
-        r"^(.+?)\s+is\s+(.+)$",
+    technical_terms = [
 
-        r"^(.+?)\s+are\s+(.+)$",
-
-        r"^(.+?)\s+was\s+(.+)$",
-
-        r"^(.+?)\s+were\s+(.+)$",
-
-        r"^(.+?)\s+has\s+(.+)$",
-
-        r"^(.+?)\s+have\s+(.+)$"
+        "Python",
+        "Java",
+        "SQL",
+        "HTML",
+        "CSS",
+        "Machine Learning",
+        "Artificial Intelligence",
+        "Deep Learning",
+        "Data Science",
+        "NumPy",
+        "Pandas",
+        "Matplotlib",
+        "Streamlit",
+        "Whisper",
+        "OpenCV",
+        "TensorFlow",
+        "PyTorch",
+        "scikit-learn"
 
     ]
 
-    for pattern in patterns:
+    for term in technical_terms:
 
-        match = re.match(
-            pattern,
-            sentence,
-            re.IGNORECASE
+        if term.lower() in sentence.lower():
+
+            answer = term
+
+            break
+
+    # -----------------------------------------------------
+    # Try proper nouns
+    # -----------------------------------------------------
+
+    if not answer:
+
+        match = re.search(
+            r"\b([A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*){0,2})\b",
+            sentence
         )
 
         if match:
 
             answer = match.group(1).strip()
 
-            break
+    # -----------------------------------------------------
+    # Try sentence patterns
+    # -----------------------------------------------------
 
     if not answer:
 
-        words = sentence.split()
+        patterns = [
 
-        if len(words) >= 3:
+            r"^(.+?)\s+is\s+(.+)$",
 
-            answer = " ".join(
-                words[:3]
+            r"^(.+?)\s+are\s+(.+)$",
+
+            r"^(.+?)\s+was\s+(.+)$",
+
+            r"^(.+?)\s+were\s+(.+)$",
+
+            r"^(.+?)\s+has\s+(.+)$",
+
+            r"^(.+?)\s+have\s+(.+)$"
+
+        ]
+
+        for pattern in patterns:
+
+            match = re.match(
+                pattern,
+                sentence,
+                re.IGNORECASE
             )
 
-        else:
+            if match:
 
-            return None, None
+                candidate = (
+                    match.group(1).strip()
+                )
+
+                if len(candidate.split()) <= 5:
+
+                    answer = candidate
+
+                    break
+
+    # -----------------------------------------------------
+    # Fallback
+    # -----------------------------------------------------
+
+    if not answer:
+
+        valid_words = []
+
+        for word in words:
+
+            clean_word = re.sub(
+                r"[^A-Za-z0-9]",
+                "",
+                word
+            )
+
+            if len(clean_word) >= 5:
+
+                valid_words.append(
+                    clean_word
+                )
+
+        if valid_words:
+
+            answer = valid_words[0]
+
+    if not answer:
+
+        return None, None
+
+    # -----------------------------------------------------
+    # Generate question
+    # -----------------------------------------------------
 
     prompt = (
         "answer: "
@@ -478,31 +727,73 @@ def make_question(
         + sentence
     )
 
-    inputs = tokenizer(
-        prompt,
-        return_tensors="pt",
-        max_length=512,
-        truncation=True
-    )
+    try:
 
-    question_ids = model.generate(
-        inputs["input_ids"],
-        max_length=64,
-        num_beams=4
-    )
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            max_length=512,
+            truncation=True
+        )
 
-    question = tokenizer.decode(
-        question_ids[0],
-        skip_special_tokens=True
-    )
+        question_ids = model.generate(
+            inputs["input_ids"],
+            max_length=64,
+            num_beams=4,
+            early_stopping=True
+        )
 
-    question = question.strip()
+        question = tokenizer.decode(
+            question_ids[0],
+            skip_special_tokens=True
+        )
 
-    if not question:
+        question = question.strip()
+
+        if not question:
+
+            return None, None
+
+        if not question.endswith("?"):
+
+            question += "?"
+
+        return question, answer
+
+    except Exception:
 
         return None, None
 
-    return question, answer
+
+# =========================================================
+# FALLBACK MCQ QUESTION
+# =========================================================
+
+def create_fallback_question(
+    sentence,
+    answer
+):
+
+    sentence = sentence.strip()
+
+    if answer.lower() in sentence.lower():
+
+        question_text = re.sub(
+            re.escape(answer),
+            "________",
+            sentence,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+        return (
+            "Which option correctly completes the statement?\n\n"
+            + question_text
+        )
+
+    return (
+        "Which of the following is mentioned in the lecture?"
+    )
 
 
 # =========================================================
@@ -513,19 +804,27 @@ st.markdown(
     """
     <div class="source-card">
         <div class="source-title">🔗 YouTube Lecture</div>
-        <p class="source-text">Paste an educational YouTube lecture link and convert its speech into a transcript.</p>
+        <p class="source-text">
+            Paste an educational YouTube lecture link and convert
+            its speech into a transcript.
+        </p>
     </div>
     """,
     unsafe_allow_html=True
 )
 
+
 youtube_url = st.text_input(
     "Paste YouTube video link here"
 )
 
+
 if youtube_url:
 
-    if st.button("📥 Process YouTube Video", use_container_width=True):
+    if st.button(
+        "📥 Process YouTube Video",
+        use_container_width=True
+    ):
 
         with st.spinner(
             "Getting YouTube transcript..."
@@ -533,13 +832,11 @@ if youtube_url:
 
             try:
 
-                # Extract YouTube video ID
-                match = re.search(
-                    r"(?:v=|youtu\.be/|youtube\.com/shorts/)([A-Za-z0-9_-]{11})",
+                video_id = get_youtube_video_id(
                     youtube_url
                 )
 
-                if not match:
+                if not video_id:
 
                     st.error(
                         "Please enter a valid YouTube video link."
@@ -547,144 +844,58 @@ if youtube_url:
 
                 else:
 
-                    video_id = match.group(1)
-
-                    # Create YouTube Transcript API
-                    youtube_api = YouTubeTranscriptApi()
-
-                    # Get all available transcripts
-                    transcript_list = youtube_api.list(
-                        video_id
+                    transcript = (
+                        get_youtube_transcript(
+                            video_id
+                        )
                     )
 
-                    available_transcripts = list(
-                        transcript_list
-                    )
+                    if transcript:
 
-                    if not available_transcripts:
+                        st.session_state[
+                            "transcript"
+                        ] = transcript
 
-                        st.error(
-                            "No captions or transcripts are available for this YouTube video."
+                        st.session_state[
+                            "summary"
+                        ] = None
+
+                        st.session_state[
+                            "notes"
+                        ] = None
+
+                        st.session_state[
+                            "mcqs"
+                        ] = None
+
+                        st.session_state[
+                            "revision"
+                        ] = None
+
+                        st.success(
+                            "YouTube transcript generated successfully!"
                         )
 
                     else:
 
-                        selected_transcript = None
-
-                        # First preference: English
-                        for transcript_item in available_transcripts:
-
-                            if (
-                                transcript_item.language_code
-                                == "en"
-                            ):
-
-                                selected_transcript = (
-                                    transcript_item
-                                )
-
-                                break
-
-                        # Second preference: Hindi
-                        if selected_transcript is None:
-
-                            for transcript_item in available_transcripts:
-
-                                if (
-                                    transcript_item.language_code
-                                    == "hi"
-                                ):
-
-                                    selected_transcript = (
-                                        transcript_item
-                                    )
-
-                                    break
-
-                        # Third preference: Marathi
-                        if selected_transcript is None:
-
-                            for transcript_item in available_transcripts:
-
-                                if (
-                                    transcript_item.language_code
-                                    == "mr"
-                                ):
-
-                                    selected_transcript = (
-                                        transcript_item
-                                    )
-
-                                    break
-
-                        # If English/Hindi/Marathi are not available,
-                        # use the first available transcript
-                        if selected_transcript is None:
-
-                            selected_transcript = (
-                                available_transcripts[0]
-                            )
-
-                        # Fetch selected transcript
-                        fetched_transcript = (
-                            selected_transcript.fetch()
+                        st.error(
+                            "Could not get a transcript for this YouTube video."
                         )
 
-                        # Convert transcript into normal text
-                        transcript = " ".join(
-                            snippet.text
-                            for snippet in fetched_transcript
+                        st.info(
+                            "This video may not expose captions, or YouTube may be blocking transcript access from the server."
                         )
-
-                        if transcript.strip():
-
-                            st.session_state[
-                                "transcript"
-                            ] = transcript
-
-                            st.session_state.pop(
-                                "summary",
-                                None
-                            )
-
-                            st.session_state.pop(
-                                "notes",
-                                None
-                            )
-
-                            st.session_state.pop(
-                                "mcqs",
-                                None
-                            )
-
-                            st.session_state.pop(
-                                "revision",
-                                None
-                            )
-
-                            st.success(
-                                "YouTube transcript generated successfully!"
-                            )
-
-                        else:
-
-                            st.warning(
-                                "The YouTube transcript was empty."
-                            )
 
             except Exception as e:
 
                 st.error(
-                    "Could not get the YouTube transcript."
-                )
-
-                st.info(
-                    "This YouTube video may not have accessible captions, or YouTube may be blocking transcript access."
+                    "YouTube transcript could not be loaded."
                 )
 
                 st.caption(
-                    f"Technical details: {str(e)}"
+                    f"Details: {str(e)}"
                 )
+
 
 # =========================================================
 # VIDEO UPLOAD
@@ -694,11 +905,15 @@ st.markdown(
     """
     <div class="source-card">
         <div class="source-title">📹 Upload Your Video</div>
-        <p class="source-text">Upload an educational video file and use Whisper AI to generate its transcript.</p>
+        <p class="source-text">
+            Upload an educational video file and use Whisper AI
+            to generate its transcript.
+        </p>
     </div>
     """,
     unsafe_allow_html=True
 )
+
 
 video_file = st.file_uploader(
     "Choose an educational video",
@@ -710,6 +925,7 @@ video_file = st.file_uploader(
     ]
 )
 
+
 if video_file is not None:
 
     st.success(
@@ -718,66 +934,120 @@ if video_file is not None:
 
     st.video(video_file)
 
-    if st.button("🎙️ Generate Transcript", use_container_width=True):
+    if st.button(
+        "🎙️ Generate Transcript",
+        use_container_width=True
+    ):
 
-        with st.spinner(
-            "Loading Whisper AI..."
-        ):
+        try:
 
-            whisper_model = load_whisper()
+            with st.spinner(
+                "Loading Whisper AI..."
+            ):
 
-        with st.spinner(
-            "Converting speech into text..."
-        ):
+                whisper_model = load_whisper()
 
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".mp4"
-            ) as temp_video:
+            file_extension = os.path.splitext(
+                video_file.name
+            )[1]
 
-                temp_video.write(
-                    video_file.read()
+            if not file_extension:
+
+                file_extension = ".mp4"
+
+            with st.spinner(
+                "Converting speech into text..."
+            ):
+
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=file_extension
+                ) as temp_video:
+
+                    temp_video.write(
+                        video_file.getbuffer()
+                    )
+
+                    video_path = temp_video.name
+
+                try:
+
+                    result = (
+                        whisper_model.transcribe(
+                            video_path
+                        )
+                    )
+
+                    transcript = (
+                        result.get(
+                            "text",
+                            ""
+                        ).strip()
+                    )
+
+                finally:
+
+                    if os.path.exists(
+                        video_path
+                    ):
+
+                        os.remove(
+                            video_path
+                        )
+
+            if transcript:
+
+                st.session_state[
+                    "transcript"
+                ] = transcript
+
+                st.session_state[
+                    "summary"
+                ] = None
+
+                st.session_state[
+                    "notes"
+                ] = None
+
+                st.session_state[
+                    "mcqs"
+                ] = None
+
+                st.session_state[
+                    "revision"
+                ] = None
+
+                st.success(
+                    "Transcript generated successfully!"
                 )
 
-                video_path = temp_video.name
+            else:
 
-            result = whisper_model.transcribe(
-                video_path
+                st.warning(
+                    "Whisper could not detect speech in this video."
+                )
+
+        except Exception as e:
+
+            st.error(
+                "Could not generate the video transcript."
             )
 
-            transcript = result["text"]
-
-            os.remove(video_path)
-
-        st.session_state["transcript"] = transcript
-
-        st.session_state.pop(
-            "summary",
-            None
-        )
-
-        st.session_state.pop(
-            "notes",
-            None
-        )
-
-        st.session_state.pop(
-            "mcqs",
-            None
-        )
-
-        st.success(
-            "Transcript generated successfully!"
-        )
+            st.caption(
+                f"Details: {str(e)}"
+            )
 
 
 # =========================================================
 # TRANSCRIPT
 # =========================================================
 
-if "transcript" in st.session_state:
+if st.session_state["transcript"]:
 
-    st.markdown('<div class="section-label">📝 Transcript</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-label">📝 Transcript</div>',
+        unsafe_allow_html=True
+    )
 
     st.text_area(
         "Generated Transcript",
@@ -787,55 +1057,80 @@ if "transcript" in st.session_state:
 
     st.divider()
 
+
     # =====================================================
     # SUMMARY
     # =====================================================
 
-    if st.button("✨ Generate AI Summary", use_container_width=True):
+    if st.button(
+        "✨ Generate AI Summary",
+        use_container_width=True
+    ):
 
-        with st.spinner(
-            "Loading AI summarization model..."
-        ):
+        try:
 
-            tokenizer, summarizer_model = (
-                load_summarizer()
+            with st.spinner(
+                "Loading AI summarization model..."
+            ):
+
+                tokenizer, summarizer_model = (
+                    load_summarizer()
+                )
+
+            with st.spinner(
+                "Generating AI summary..."
+            ):
+
+                text = (
+                    st.session_state["transcript"]
+                )
+
+                inputs = tokenizer(
+                    text,
+                    return_tensors="pt",
+                    max_length=1024,
+                    truncation=True
+                )
+
+                summary_ids = (
+                    summarizer_model.generate(
+                        inputs["input_ids"],
+                        max_length=150,
+                        min_length=30,
+                        do_sample=False
+                    )
+                )
+
+                summary = tokenizer.decode(
+                    summary_ids[0],
+                    skip_special_tokens=True
+                )
+
+            st.session_state[
+                "summary"
+            ] = summary
+
+            st.success(
+                "AI summary generated successfully!"
             )
 
-        with st.spinner(
-            "Generating AI summary..."
-        ):
+        except Exception as e:
 
-            text = st.session_state["transcript"]
-
-            inputs = tokenizer(
-                text,
-                return_tensors="pt",
-                max_length=1024,
-                truncation=True
+            st.error(
+                "Could not generate the AI summary."
             )
 
-            summary_ids = summarizer_model.generate(
-                inputs["input_ids"],
-                max_length=150,
-                min_length=30,
-                do_sample=False
+            st.caption(
+                f"Details: {str(e)}"
             )
 
-            summary = tokenizer.decode(
-                summary_ids[0],
-                skip_special_tokens=True
-            )
 
-        st.session_state["summary"] = summary
+    if st.session_state["summary"]:
 
-        st.success(
-            "AI summary generated successfully!"
+        st.markdown(
+            '<div class="section-label">📌 AI Summary</div>',
+            unsafe_allow_html=True
         )
-
-
-    if "summary" in st.session_state:
-
-        st.markdown('<div class="section-label">📌 AI Summary</div>', unsafe_allow_html=True)
 
         st.markdown(
             f"""
@@ -855,61 +1150,86 @@ if "transcript" in st.session_state:
     # INTELLIGENT NOTES
     # =====================================================
 
-    st.markdown('<div class="section-label">📚 Intelligent Notes</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-label">📚 Intelligent Notes</div>',
+        unsafe_allow_html=True
+    )
 
-    if st.button("📝 Generate Study Notes", use_container_width=True):
 
-        with st.spinner(
-            "Generating intelligent notes..."
-        ):
+    if st.button(
+        "📝 Generate Study Notes",
+        use_container_width=True
+    ):
 
-            tokenizer, summarizer_model = (
-                load_summarizer()
-            )
+        try:
 
-            text = st.session_state["transcript"]
+            with st.spinner(
+                "Generating intelligent notes..."
+            ):
 
-            inputs = tokenizer(
-                text,
-                return_tensors="pt",
-                max_length=1024,
-                truncation=True
-            )
-
-            notes_ids = summarizer_model.generate(
-                inputs["input_ids"],
-                max_length=180,
-                min_length=40,
-                do_sample=False
-            )
-
-            notes_text = tokenizer.decode(
-                notes_ids[0],
-                skip_special_tokens=True
-            )
-
-        sentences = notes_text.split(".")
-
-        clean_notes = []
-
-        for sentence in sentences:
-
-            sentence = sentence.strip()
-
-            if sentence:
-
-                clean_notes.append(
-                    sentence
+                tokenizer, summarizer_model = (
+                    load_summarizer()
                 )
 
-        st.session_state["notes"] = clean_notes
+                text = (
+                    st.session_state["transcript"]
+                )
 
-        st.success(
-            "Study notes generated successfully!"
-        )
+                inputs = tokenizer(
+                    text,
+                    return_tensors="pt",
+                    max_length=1024,
+                    truncation=True
+                )
+
+                notes_ids = (
+                    summarizer_model.generate(
+                        inputs["input_ids"],
+                        max_length=180,
+                        min_length=40,
+                        do_sample=False
+                    )
+                )
+
+                notes_text = tokenizer.decode(
+                    notes_ids[0],
+                    skip_special_tokens=True
+                )
+
+            sentences = notes_text.split(".")
+
+            clean_notes = []
+
+            for sentence in sentences:
+
+                sentence = sentence.strip()
+
+                if sentence:
+
+                    clean_notes.append(
+                        sentence
+                    )
+
+            st.session_state[
+                "notes"
+            ] = clean_notes
+
+            st.success(
+                "Study notes generated successfully!"
+            )
+
+        except Exception as e:
+
+            st.error(
+                "Could not generate study notes."
+            )
+
+            st.caption(
+                f"Details: {str(e)}"
+            )
 
 
-    if "notes" in st.session_state:
+    if st.session_state["notes"]:
 
         for note in st.session_state["notes"]:
 
@@ -930,175 +1250,299 @@ if "transcript" in st.session_state:
     # MCQs
     # =====================================================
 
-    st.markdown('<div class="section-label">🧠 Questions & MCQs</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-label">🧠 Questions & MCQs</div>',
+        unsafe_allow_html=True
+    )
 
-    if st.button("🎯 Generate MCQs", use_container_width=True):
 
-        with st.spinner(
-            "Generating MCQs from the video..."
-        ):
+    if st.button(
+        "🎯 Generate MCQs",
+        use_container_width=True
+    ):
 
-            question_tokenizer, question_model = (
-                load_question_model()
-            )
+        try:
 
-            transcript = (
-                st.session_state["transcript"]
-            )
+            with st.spinner(
+                "Generating MCQs from the video..."
+            ):
 
-            sentences = re.split(
-                r"[.!?]",
-                transcript
-            )
-
-            useful_sentences = []
-
-            for sentence in sentences:
-
-                sentence = sentence.strip()
-
-                if len(sentence.split()) >= 6:
-
-                    useful_sentences.append(
-                        sentence
-                    )
-
-            generated_mcqs = []
-
-            for sentence in useful_sentences:
-
-                if len(generated_mcqs) >= 5:
-
-                    break
-
-                question, correct_answer = make_question(
-                    question_tokenizer,
-                    question_model,
-                    sentence
+                question_tokenizer, question_model = (
+                    load_question_model()
                 )
 
-                if not question:
+                transcript = (
+                    st.session_state["transcript"]
+                )
 
-                    continue
+                sentences = re.split(
+                    r"[.!?]+",
+                    transcript
+                )
 
-                if not correct_answer:
+                useful_sentences = []
 
-                    continue
+                for sentence in sentences:
 
-                possible_answers = []
+                    sentence = sentence.strip()
 
-                for other_sentence in useful_sentences:
+                    if len(
+                        sentence.split()
+                    ) >= 7:
 
-                    if other_sentence == sentence:
+                        useful_sentences.append(
+                            sentence
+                        )
+
+                # Remove duplicate sentences
+                unique_sentences = []
+
+                for sentence in useful_sentences:
+
+                    if sentence.lower() not in [
+                        x.lower()
+                        for x in unique_sentences
+                    ]:
+
+                        unique_sentences.append(
+                            sentence
+                        )
+
+                generated_mcqs = []
+
+                used_questions = []
+
+                # -------------------------------------------------
+                # Generate maximum 5 MCQs
+                # -------------------------------------------------
+
+                for sentence in unique_sentences:
+
+                    if len(
+                        generated_mcqs
+                    ) >= 5:
+
+                        break
+
+                    question, correct_answer = (
+                        make_question(
+                            question_tokenizer,
+                            question_model,
+                            sentence
+                        )
+                    )
+
+                    if not correct_answer:
 
                         continue
 
-                    match = re.match(
-                        r"^(.+?)\s+(?:is|are|was|were|has|have)\s+(.+)$",
-                        other_sentence,
-                        re.IGNORECASE
-                    )
+                    # -------------------------------------------------
+                    # If question model doesn't produce a question,
+                    # create a fallback question
+                    # -------------------------------------------------
 
-                    if match:
+                    if not question:
 
-                        candidate = (
-                            match.group(1).strip()
+                        question = (
+                            create_fallback_question(
+                                sentence,
+                                correct_answer
+                            )
                         )
 
+                    if question in used_questions:
+
+                        continue
+
+                    used_questions.append(
+                        question
+                    )
+
+                    # -------------------------------------------------
+                    # Generate wrong answers
+                    # -------------------------------------------------
+
+                    possible_answers = []
+
+                    for other_sentence in (
+                        unique_sentences
+                    ):
+
                         if (
-                            candidate.lower()
-                            != correct_answer.lower()
+                            other_sentence
+                            == sentence
                         ):
 
-                            if candidate not in possible_answers:
+                            continue
+
+                        words = (
+                            other_sentence.split()
+                        )
+
+                        for word in words:
+
+                            candidate = re.sub(
+                                r"[^A-Za-z0-9]",
+                                "",
+                                word
+                            )
+
+                            if len(
+                                candidate
+                            ) < 5:
+
+                                continue
+
+                            if (
+                                candidate.lower()
+                                == correct_answer.lower()
+                            ):
+
+                                continue
+
+                            already_used = [
+                                x.lower()
+                                for x in possible_answers
+                            ]
+
+                            if (
+                                candidate.lower()
+                                not in already_used
+                            ):
 
                                 possible_answers.append(
                                     candidate
                                 )
 
-                if len(possible_answers) < 3:
+                            if len(
+                                possible_answers
+                            ) >= 3:
 
-                    for other_sentence in useful_sentences:
+                                break
 
-                        words = other_sentence.split()
+                        if len(
+                            possible_answers
+                        ) >= 3:
 
-                        if len(words) >= 2:
+                            break
 
-                            candidate = (
-                                " ".join(words[:3])
-                            )
+                    # -------------------------------------------------
+                    # Transcript fallback
+                    # -------------------------------------------------
 
-                            if (
-                                candidate.lower()
-                                != correct_answer.lower()
-                            ):
+                    if len(
+                        possible_answers
+                    ) < 3:
 
-                                if candidate not in possible_answers:
-
-                                    possible_answers.append(
-                                        candidate
-                                    )
-
-                if len(possible_answers) < 3:
-
-                    continue
-
-                wrong_answers = (
-                    possible_answers[:3]
-                )
-
-                options = [
-                    correct_answer,
-                    wrong_answers[0],
-                    wrong_answers[1],
-                    wrong_answers[2]
-                ]
-
-                random.shuffle(
-                    options
-                )
-
-                correct_letter = ""
-
-                for index, option in enumerate(
-                    options
-                ):
-
-                    if option.lower() == (
-                        correct_answer.lower()
-                    ):
-
-                        correct_letter = chr(
-                            65 + index
+                        all_words = re.findall(
+                            r"\b[A-Za-z][A-Za-z0-9]{4,}\b",
+                            transcript
                         )
 
-                generated_mcqs.append(
-                    {
-                        "question": question,
-                        "options": options,
-                        "answer": correct_letter
-                    }
+                        for word in all_words:
+
+                            if (
+                                word.lower()
+                                == correct_answer.lower()
+                            ):
+
+                                continue
+
+                            if word.lower() in [
+                                x.lower()
+                                for x in possible_answers
+                            ]:
+
+                                continue
+
+                            possible_answers.append(
+                                word
+                            )
+
+                            if len(
+                                possible_answers
+                            ) >= 3:
+
+                                break
+
+                    if len(
+                        possible_answers
+                    ) < 3:
+
+                        continue
+
+                    # -------------------------------------------------
+                    # Create options
+                    # -------------------------------------------------
+
+                    options = [
+                        correct_answer,
+                        possible_answers[0],
+                        possible_answers[1],
+                        possible_answers[2]
+                    ]
+
+                    random.shuffle(
+                        options
+                    )
+
+                    correct_letter = ""
+
+                    for index, option in enumerate(
+                        options
+                    ):
+
+                        if (
+                            option.lower()
+                            == correct_answer.lower()
+                        ):
+
+                            correct_letter = chr(
+                                65 + index
+                            )
+
+                            break
+
+                    if not correct_letter:
+
+                        continue
+
+                    generated_mcqs.append(
+                        {
+                            "question": question,
+                            "options": options,
+                            "answer": correct_letter
+                        }
+                    )
+
+                st.session_state[
+                    "mcqs"
+                ] = generated_mcqs
+
+            if generated_mcqs:
+
+                st.success(
+                    f"{len(generated_mcqs)} MCQs generated successfully!"
                 )
 
-            st.session_state["mcqs"] = (
-                generated_mcqs
+            else:
+
+                st.warning(
+                    "The transcript was generated, but suitable MCQs could not be created."
+                )
+
+        except Exception as e:
+
+            st.error(
+                "Could not generate MCQs."
             )
 
-        if generated_mcqs:
-
-            st.success(
-                f"{len(generated_mcqs)} MCQs generated successfully!"
-            )
-
-        else:
-
-            st.warning(
-                "No MCQs could be generated from "
-                "the available transcript."
+            st.caption(
+                f"Details: {str(e)}"
             )
 
 
-    if "mcqs" in st.session_state:
+    if st.session_state["mcqs"]:
 
         for i, mcq in enumerate(
             st.session_state["mcqs"],
@@ -1127,63 +1571,54 @@ if "transcript" in st.session_state:
     # PDF
     # =====================================================
 
-    st.markdown('<div class="section-label">📄 Study Material PDF</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-label">📄 Study Material PDF</div>',
+        unsafe_allow_html=True
+    )
 
-    if st.button("📥 Generate PDF", use_container_width=True):
 
-        pdf_file = (
-            "SmartLearn_AI_Study_Material.pdf"
-        )
+    if st.button(
+        "📥 Generate PDF",
+        use_container_width=True
+    ):
 
-        document = SimpleDocTemplate(
-            pdf_file
-        )
+        try:
 
-        styles = getSampleStyleSheet()
-
-        story = []
-
-        story.append(
-            Paragraph(
-                "SmartLearn AI - Study Material",
-                styles["Title"]
+            pdf_file = (
+                "SmartLearn_AI_Study_Material.pdf"
             )
-        )
 
-        story.append(
-            Spacer(1, 20)
-        )
-
-        story.append(
-            Paragraph(
-                "Transcript",
-                styles["Heading2"]
+            document = SimpleDocTemplate(
+                pdf_file
             )
-        )
 
-        story.append(
-            Paragraph(
-                escape(st.session_state["transcript"]),
-                styles["BodyText"]
-            )
-        )
+            styles = getSampleStyleSheet()
 
-        story.append(
-            Spacer(1, 20)
-        )
-
-        if "summary" in st.session_state:
+            story = []
 
             story.append(
                 Paragraph(
-                    "AI Summary",
+                    "SmartLearn AI - Study Material",
+                    styles["Title"]
+                )
+            )
+
+            story.append(
+                Spacer(1, 20)
+            )
+
+            story.append(
+                Paragraph(
+                    "Transcript",
                     styles["Heading2"]
                 )
             )
 
             story.append(
                 Paragraph(
-                    escape(st.session_state["summary"]),
+                    escape(
+                        st.session_state["transcript"]
+                    ),
                     styles["BodyText"]
                 )
             )
@@ -1192,101 +1627,133 @@ if "transcript" in st.session_state:
                 Spacer(1, 20)
             )
 
-        if "notes" in st.session_state:
-
-            story.append(
-                Paragraph(
-                    "Intelligent Notes",
-                    styles["Heading2"]
-                )
-            )
-
-            for note in st.session_state["notes"]:
+            if st.session_state["summary"]:
 
                 story.append(
                     Paragraph(
-                        "• " + escape(note),
+                        "AI Summary",
+                        styles["Heading2"]
+                    )
+                )
+
+                story.append(
+                    Paragraph(
+                        escape(
+                            st.session_state["summary"]
+                        ),
                         styles["BodyText"]
                     )
                 )
 
                 story.append(
-                    Spacer(1, 5)
+                    Spacer(1, 20)
                 )
 
-        if "mcqs" in st.session_state:
-
-            story.append(
-                Paragraph(
-                    "MCQs",
-                    styles["Heading2"]
-                )
-            )
-
-            for i, mcq in enumerate(
-                st.session_state["mcqs"],
-                start=1
-            ):
+            if st.session_state["notes"]:
 
                 story.append(
                     Paragraph(
-                        f"Q{i}. {escape(mcq['question'])}",
-                        styles["BodyText"]
+                        "Intelligent Notes",
+                        styles["Heading2"]
                     )
                 )
 
-                for index, option in enumerate(
-                    mcq["options"]
+                for note in (
+                    st.session_state["notes"]
                 ):
-
-                    letter = chr(
-                        65 + index
-                    )
 
                     story.append(
                         Paragraph(
-                            f"{letter}) {escape(option)}",
+                            "• " + escape(note),
                             styles["BodyText"]
                         )
                     )
 
+                    story.append(
+                        Spacer(1, 5)
+                    )
+
+            if st.session_state["mcqs"]:
+
                 story.append(
                     Paragraph(
-                        f"Correct Answer: "
-                        f"{escape(mcq['answer'])}",
-                        styles["BodyText"]
+                        "MCQs",
+                        styles["Heading2"]
                     )
                 )
 
-                story.append(
-                    Spacer(1, 15)
-                )
+                for i, mcq in enumerate(
+                    st.session_state["mcqs"],
+                    start=1
+                ):
 
-        document.build(
-            story
-        )
+                    story.append(
+                        Paragraph(
+                            f"Q{i}. "
+                            f"{escape(mcq['question'])}",
+                            styles["BodyText"]
+                        )
+                    )
 
-        with open(
-            pdf_file,
-            "rb"
-        ) as file:
+                    for index, option in enumerate(
+                        mcq["options"]
+                    ):
 
-            pdf_data = file.read()
+                        letter = chr(
+                            65 + index
+                        )
 
-        st.success(
-            "PDF generated successfully!"
-        )
+                        story.append(
+                            Paragraph(
+                                f"{letter}) "
+                                f"{escape(option)}",
+                                styles["BodyText"]
+                            )
+                        )
 
-        st.download_button(
-            label="⬇️ Download Study Material PDF",
+                    story.append(
+                        Paragraph(
+                            f"Correct Answer: "
+                            f"{escape(mcq['answer'])}",
+                            styles["BodyText"]
+                        )
+                    )
 
-            data=pdf_data,
+                    story.append(
+                        Spacer(1, 15)
+                    )
 
-            file_name=
-            "SmartLearn_AI_Study_Material.pdf",
+            document.build(
+                story
+            )
 
-            mime="application/pdf"
-        )
+            with open(
+                pdf_file,
+                "rb"
+            ) as file:
+
+                pdf_data = file.read()
+
+            st.success(
+                "PDF generated successfully!"
+            )
+
+            st.download_button(
+                label="⬇️ Download Study Material PDF",
+                data=pdf_data,
+                file_name="SmartLearn_AI_Study_Material.pdf",
+                mime="application/pdf"
+            )
+
+        except Exception as e:
+
+            st.error(
+                "Could not generate PDF."
+            )
+
+            st.caption(
+                f"Details: {str(e)}"
+            )
 
 
     # =====================================================
@@ -1295,65 +1762,88 @@ if "transcript" in st.session_state:
 
     st.divider()
 
-    st.markdown('<div class="section-label">🎯 Exam Revision Mode</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-label">🎯 Exam Revision Mode</div>',
+        unsafe_allow_html=True
+    )
 
     st.caption(
         "Generate a quick revision sheet from your lecture."
     )
+
 
     if st.button(
         "⚡ Generate Revision Sheet",
         use_container_width=True
     ):
 
-        with st.spinner(
-            "Preparing your exam revision sheet..."
-        ):
+        try:
 
-            tokenizer, summarizer_model = (
-                load_summarizer()
-            )
+            with st.spinner(
+                "Preparing your exam revision sheet..."
+            ):
 
-            text = st.session_state["transcript"]
-
-            inputs = tokenizer(
-                text,
-                return_tensors="pt",
-                max_length=1024,
-                truncation=True
-            )
-
-            revision_ids = summarizer_model.generate(
-                inputs["input_ids"],
-                max_length=200,
-                min_length=60,
-                do_sample=False
-            )
-
-            revision_text = tokenizer.decode(
-                revision_ids[0],
-                skip_special_tokens=True
-            )
-
-        sentences = revision_text.split(".")
-
-        revision_points = []
-
-        for sentence in sentences:
-
-            sentence = sentence.strip()
-
-            if sentence:
-
-                revision_points.append(
-                    sentence
+                tokenizer, summarizer_model = (
+                    load_summarizer()
                 )
 
-        st.session_state["revision"] = revision_points
+                text = (
+                    st.session_state["transcript"]
+                )
 
-        st.success(
-            "Revision sheet generated successfully!"
-        )
+                inputs = tokenizer(
+                    text,
+                    return_tensors="pt",
+                    max_length=1024,
+                    truncation=True
+                )
+
+                revision_ids = (
+                    summarizer_model.generate(
+                        inputs["input_ids"],
+                        max_length=200,
+                        min_length=60,
+                        do_sample=False
+                    )
+                )
+
+                revision_text = tokenizer.decode(
+                    revision_ids[0],
+                    skip_special_tokens=True
+                )
+
+            sentences = revision_text.split(".")
+
+            revision_points = []
+
+            for sentence in sentences:
+
+                sentence = sentence.strip()
+
+                if sentence:
+
+                    revision_points.append(
+                        sentence
+                    )
+
+            st.session_state[
+                "revision"
+            ] = revision_points
+
+            st.success(
+                "Revision sheet generated successfully!"
+            )
+
+        except Exception as e:
+
+            st.error(
+                "Could not generate revision sheet."
+            )
+
+            st.caption(
+                f"Details: {str(e)}"
+            )
+
 
     if st.session_state["revision"]:
 
@@ -1361,7 +1851,9 @@ if "transcript" in st.session_state:
             "### 📌 Important Revision Points"
         )
 
-        for point in st.session_state["revision"]:
+        for point in (
+            st.session_state["revision"]
+        ):
 
             st.markdown(
                 f"""
@@ -1371,6 +1863,7 @@ if "transcript" in st.session_state:
                 """,
                 unsafe_allow_html=True
             )
+
 
 # =========================================================
 # FOOTER
