@@ -549,53 +549,128 @@ if youtube_url:
 
                     video_id = match.group(1)
 
-                    # Get transcript directly from YouTube captions
+                    # Create YouTube Transcript API
                     youtube_api = YouTubeTranscriptApi()
 
-                    fetched_transcript = youtube_api.fetch(
-                        video_id,
-                        languages=["en", "hi", "mr"]
+                    # Get all available transcripts
+                    transcript_list = youtube_api.list(
+                        video_id
                     )
 
-                    # Convert transcript into normal text
-                    transcript = " ".join(
-                        snippet.text
-                        for snippet in fetched_transcript
+                    available_transcripts = list(
+                        transcript_list
                     )
 
-                    if transcript.strip():
+                    if not available_transcripts:
 
-                        st.session_state["transcript"] = transcript
-
-                        st.session_state.pop(
-                            "summary",
-                            None
-                        )
-
-                        st.session_state.pop(
-                            "notes",
-                            None
-                        )
-
-                        st.session_state.pop(
-                            "mcqs",
-                            None
-                        )
-
-                        st.session_state.pop(
-                            "revision",
-                            None
-                        )
-
-                        st.success(
-                            "YouTube transcript generated successfully!"
+                        st.error(
+                            "No captions or transcripts are available for this YouTube video."
                         )
 
                     else:
 
-                        st.warning(
-                            "No transcript was available for this video."
+                        selected_transcript = None
+
+                        # First preference: English
+                        for transcript_item in available_transcripts:
+
+                            if (
+                                transcript_item.language_code
+                                == "en"
+                            ):
+
+                                selected_transcript = (
+                                    transcript_item
+                                )
+
+                                break
+
+                        # Second preference: Hindi
+                        if selected_transcript is None:
+
+                            for transcript_item in available_transcripts:
+
+                                if (
+                                    transcript_item.language_code
+                                    == "hi"
+                                ):
+
+                                    selected_transcript = (
+                                        transcript_item
+                                    )
+
+                                    break
+
+                        # Third preference: Marathi
+                        if selected_transcript is None:
+
+                            for transcript_item in available_transcripts:
+
+                                if (
+                                    transcript_item.language_code
+                                    == "mr"
+                                ):
+
+                                    selected_transcript = (
+                                        transcript_item
+                                    )
+
+                                    break
+
+                        # If English/Hindi/Marathi are not available,
+                        # use the first available transcript
+                        if selected_transcript is None:
+
+                            selected_transcript = (
+                                available_transcripts[0]
+                            )
+
+                        # Fetch selected transcript
+                        fetched_transcript = (
+                            selected_transcript.fetch()
                         )
+
+                        # Convert transcript into normal text
+                        transcript = " ".join(
+                            snippet.text
+                            for snippet in fetched_transcript
+                        )
+
+                        if transcript.strip():
+
+                            st.session_state[
+                                "transcript"
+                            ] = transcript
+
+                            st.session_state.pop(
+                                "summary",
+                                None
+                            )
+
+                            st.session_state.pop(
+                                "notes",
+                                None
+                            )
+
+                            st.session_state.pop(
+                                "mcqs",
+                                None
+                            )
+
+                            st.session_state.pop(
+                                "revision",
+                                None
+                            )
+
+                            st.success(
+                                "YouTube transcript generated successfully!"
+                            )
+
+                        else:
+
+                            st.warning(
+                                "The YouTube transcript was empty."
+                            )
 
             except Exception as e:
 
@@ -604,9 +679,12 @@ if youtube_url:
                 )
 
                 st.info(
-                    "This video may not have accessible captions."
+                    "This YouTube video may not have accessible captions, or YouTube may be blocking transcript access."
                 )
 
+                st.caption(
+                    f"Technical details: {str(e)}"
+                )
 
 # =========================================================
 # VIDEO UPLOAD
