@@ -471,13 +471,19 @@ def generate_ai_text(text, max_output_length):
         truncation=True
     )
 
-    input_length = inputs["input_ids"].shape[1]
+    input_length = int(
+        inputs["input_ids"].shape[1]
+    )
 
-    # IMPORTANT:
-    # Prevent min_length > available input length.
+    # Very short transcript fallback
+    if input_length <= 8:
+
+        return text
+
+    # Keep output length safely below the input
     safe_max = min(
         max_output_length,
-        max(20, input_length)
+        max(8, input_length - 1)
     )
 
     safe_min = min(
@@ -486,9 +492,10 @@ def generate_ai_text(text, max_output_length):
     )
 
     if safe_min >= safe_max:
+
         safe_min = max(
-            5,
-            safe_max // 2
+            1,
+            safe_max - 1
         )
 
     output_ids = model.generate(
@@ -501,10 +508,15 @@ def generate_ai_text(text, max_output_length):
         early_stopping=True
     )
 
-    return tokenizer.decode(
+    result = tokenizer.decode(
         output_ids[0],
         skip_special_tokens=True
     ).strip()
+
+    if not result:
+        return text
+
+    return result
 
 
 # =========================================================
@@ -512,6 +524,8 @@ def generate_ai_text(text, max_output_length):
 # =========================================================
 
 def get_youtube_video_id(url):
+
+    url = url.strip()
 
     patterns = [
 
@@ -616,7 +630,6 @@ def get_youtube_transcript(video_id):
 
         selected = None
 
-        # Prefer English / Hindi / Marathi
         for language in preferred_languages:
 
             for item in available:
@@ -636,7 +649,6 @@ def get_youtube_transcript(video_id):
             if selected:
                 break
 
-        # Prefer manually created transcript
         if selected is None:
 
             for item in available:
@@ -651,7 +663,6 @@ def get_youtube_transcript(video_id):
 
                     break
 
-        # Otherwise first transcript
         if selected is None:
 
             selected = available[0]
@@ -714,10 +725,6 @@ def make_question(
 
         return None, None
 
-    # ---------------------------------------------
-    # Better answer extraction
-    # ---------------------------------------------
-
     patterns = [
 
         r"^(.+?)\s+is\s+(.+)$",
@@ -757,31 +764,30 @@ def make_question(
                 break
 
 
-    # Technical terms fallback
+    technical_terms = [
+
+        "Python",
+        "Java",
+        "SQL",
+        "HTML",
+        "CSS",
+        "Machine Learning",
+        "Artificial Intelligence",
+        "Deep Learning",
+        "Data Science",
+        "NumPy",
+        "Pandas",
+        "Matplotlib",
+        "Streamlit",
+        "Whisper",
+        "OpenCV",
+        "TensorFlow",
+        "PyTorch",
+        "scikit-learn"
+
+    ]
+
     if not answer:
-
-        technical_terms = [
-
-            "Python",
-            "Java",
-            "SQL",
-            "HTML",
-            "CSS",
-            "Machine Learning",
-            "Artificial Intelligence",
-            "Deep Learning",
-            "Data Science",
-            "NumPy",
-            "Pandas",
-            "Matplotlib",
-            "Streamlit",
-            "Whisper",
-            "OpenCV",
-            "TensorFlow",
-            "PyTorch",
-            "scikit-learn"
-
-        ]
 
         for term in technical_terms:
 
@@ -878,7 +884,7 @@ def create_fallback_question(
 
 
 # =========================================================
-# NEW RELIABLE MCQ GENERATOR
+# RELIABLE MCQ GENERATOR
 # =========================================================
 
 def generate_mcqs_from_transcript(transcript):
@@ -900,7 +906,11 @@ def generate_mcqs_from_transcript(transcript):
 
     for sentence in sentences:
 
-        sentence = sentence.strip()
+        sentence = re.sub(
+            r"\s+",
+            " ",
+            sentence
+        ).strip()
 
         if len(sentence.split()) >= 7:
 
@@ -920,8 +930,8 @@ def generate_mcqs_from_transcript(transcript):
 
 
     # -----------------------------------------------------
-    # First try the existing question model.
-    # If it fails, fallback automatically.
+    # Question model is optional.
+    # The MCQ system will still work if it fails.
     # -----------------------------------------------------
 
     question_tokenizer = None
@@ -944,43 +954,78 @@ def generate_mcqs_from_transcript(transcript):
     used_answers = set()
 
 
+    # -----------------------------------------------------
+    # Create many candidates from the whole transcript
+    # -----------------------------------------------------
+
     for sentence in useful_sentences:
 
         question = None
         answer = None
 
-        if question_tokenizer is not None:
-
-            question, answer = make_question(
-                question_tokenizer,
-                question_model,
-                sentence
-            )
 
         # ---------------------------------------------
-        # If model didn't find an answer, use
-        # sentence pattern directly.
+        # Try question generation model
+        # ---------------------------------------------
+
+        if question_tokenizer is not None:
+
+            try:
+
+                question, answer = make_question(
+                    question_tokenizer,
+                    question_model,
+                    sentence
+                )
+
+            except Exception:
+
+                question = None
+                answer = None
+
+
+        # ---------------------------------------------
+        # Direct sentence patterns
         # ---------------------------------------------
 
         if not answer:
 
             patterns = [
 
-                r"^(.+?)\s+is\s+(.+)$",
+                (
+                    r"^(.+?)\s+is\s+(.+)$",
+                    "is"
+                ),
 
-                r"^(.+?)\s+are\s+(.+)$",
+                (
+                    r"^(.+?)\s+are\s+(.+)$",
+                    "are"
+                ),
 
-                r"^(.+?)\s+was\s+(.+)$",
+                (
+                    r"^(.+?)\s+was\s+(.+)$",
+                    "was"
+                ),
 
-                r"^(.+?)\s+were\s+(.+)$",
+                (
+                    r"^(.+?)\s+were\s+(.+)$",
+                    "were"
+                ),
 
-                r"^(.+?)\s+has\s+(.+)$",
+                (
+                    r"^(.+?)\s+has\s+(.+)$",
+                    "has"
+                ),
 
-                r"^(.+?)\s+have\s+(.+)$"
+                (
+                    r"^(.+?)\s+have\s+(.+)$",
+                    "have"
+                )
 
             ]
 
-            for pattern in patterns:
+
+            for pattern, verb in patterns:
 
                 match = re.match(
                     pattern,
@@ -998,19 +1043,21 @@ def generate_mcqs_from_transcript(transcript):
 
                     if (
                         1 <= len(subject.split()) <= 8
-                        and len(answer_candidate.split()) >= 2
+                        and 2 <= len(answer_candidate.split()) <= 15
                     ):
 
                         answer = answer_candidate
 
-                        if re.search(
-                            r"\s+(is|was|has)\s+",
-                            sentence,
-                            re.IGNORECASE
-                        ):
+                        if verb in [
+                            "is",
+                            "was",
+                            "has"
+                        ]:
 
                             question = (
-                                "What is "
+                                "What "
+                                + verb
+                                + " "
                                 + subject
                                 + "?"
                             )
@@ -1018,7 +1065,9 @@ def generate_mcqs_from_transcript(transcript):
                         else:
 
                             question = (
-                                "What are "
+                                "What "
+                                + verb
+                                + " "
                                 + subject
                                 + "?"
                             )
@@ -1026,23 +1075,126 @@ def generate_mcqs_from_transcript(transcript):
                         break
 
 
+        # ---------------------------------------------
+        # can/could/will/should patterns
+        # ---------------------------------------------
+
+        if not answer:
+
+            action_verbs = [
+                "can",
+                "could",
+                "will",
+                "would",
+                "should",
+                "may",
+                "might"
+            ]
+
+            for verb in action_verbs:
+
+                pattern = (
+                    r"^(.+?)\s+"
+                    + verb
+                    + r"\s+(.+)$"
+                )
+
+                match = re.match(
+                    pattern,
+                    sentence,
+                    re.IGNORECASE
+                )
+
+                if match:
+
+                    subject = match.group(1).strip()
+
+                    answer_candidate = (
+                        match.group(2).strip()
+                    )
+
+                    if (
+                        1 <= len(subject.split()) <= 8
+                        and 2 <= len(answer_candidate.split()) <= 15
+                    ):
+
+                        answer = answer_candidate
+
+                        question = (
+                            "What "
+                            + verb
+                            + " "
+                            + subject
+                            + "?"
+                        )
+
+                        break
+
+
+        # ---------------------------------------------
+        # General sentence fallback
+        # ---------------------------------------------
+
+        if not answer:
+
+            words = sentence.split()
+
+            if len(words) >= 10:
+
+                start = max(
+                    1,
+                    len(words) // 2 - 2
+                )
+
+                end = min(
+                    len(words),
+                    start + 5
+                )
+
+                answer = " ".join(
+                    words[start:end]
+                )
+
+            else:
+
+                answer = " ".join(
+                    words[-4:]
+                )
+
+            answer = answer.strip(
+                " ,;:-"
+            )
+
+            question = (
+                "Which option correctly completes "
+                "the statement?\n\n"
+                + re.sub(
+                    re.escape(answer),
+                    "________",
+                    sentence,
+                    count=1,
+                    flags=re.IGNORECASE
+                )
+            )
+
+
         if not answer:
 
             continue
 
 
-        answer = answer.strip(
+        answer = re.sub(
+            r"\s+",
+            " ",
+            answer
+        ).strip(
             " ,;:-"
         )
 
-        # Keep answers readable
-        answer_words = answer.split()
 
-        if len(answer_words) > 18:
+        if len(answer) < 3:
 
-            answer = " ".join(
-                answer_words[:18]
-            ) + "..."
+            continue
 
 
         answer_key = answer.lower()
@@ -1053,9 +1205,14 @@ def generate_mcqs_from_transcript(transcript):
             continue
 
 
-        if len(answer) < 3:
+        # Keep answers readable
+        answer_words = answer.split()
 
-            continue
+        if len(answer_words) > 18:
+
+            answer = " ".join(
+                answer_words[:18]
+            ) + "..."
 
 
         if not question:
@@ -1080,11 +1237,10 @@ def generate_mcqs_from_transcript(transcript):
 
 
     # -----------------------------------------------------
-    # If not enough pattern-based candidates,
-    # create reliable sentence-based candidates.
+    # Add additional candidates from transcript chunks
     # -----------------------------------------------------
 
-    if len(candidates) < 4:
+    if len(candidates) < 8:
 
         for sentence in useful_sentences:
 
@@ -1095,44 +1251,93 @@ def generate_mcqs_from_transcript(transcript):
                 continue
 
 
-            # Pick a meaningful phrase
-            phrase = " ".join(
-                words[:min(7, len(words))]
-            )
+            # Create several possible phrases
+            # from each sentence.
 
-            phrase = phrase.strip(
-                " ,;:-"
-            )
+            for chunk_size in [3, 4, 5]:
 
+                if len(words) < chunk_size:
 
-            if len(phrase) < 10:
-
-                continue
+                    continue
 
 
-            if phrase.lower() in used_answers:
+                for start in range(
+                    0,
+                    len(words) - chunk_size + 1,
+                    chunk_size
+                ):
 
-                continue
-
-
-            candidates.append(
-                {
-                    "question":
-                        "Which statement is mentioned "
-                        "in the lecture?",
-                    "answer": phrase
-                }
-            )
-
-            used_answers.add(
-                phrase.lower()
-            )
+                    phrase = " ".join(
+                        words[
+                            start:start + chunk_size
+                        ]
+                    ).strip(
+                        " ,;:-"
+                    )
 
 
-            if len(candidates) >= 8:
+                    if len(phrase) < 8:
+
+                        continue
+
+
+                    phrase_key = phrase.lower()
+
+
+                    if phrase_key in used_answers:
+
+                        continue
+
+
+                    masked_sentence = re.sub(
+                        re.escape(phrase),
+                        "________",
+                        sentence,
+                        count=1,
+                        flags=re.IGNORECASE
+                    )
+
+
+                    if masked_sentence == sentence:
+
+                        continue
+
+
+                    candidates.append(
+                        {
+                            "question":
+                                "Which option correctly "
+                                "completes the statement?\n\n"
+                                + masked_sentence,
+
+                            "answer": phrase
+                        }
+                    )
+
+
+                    used_answers.add(
+                        phrase_key
+                    )
+
+
+                    if len(candidates) >= 10:
+
+                        break
+
+
+                if len(candidates) >= 10:
+
+                    break
+
+
+            if len(candidates) >= 10:
 
                 break
 
+
+    # -----------------------------------------------------
+    # If there are fewer than 4 candidates, stop.
+    # -----------------------------------------------------
 
     if len(candidates) < 4:
 
@@ -1140,7 +1345,7 @@ def generate_mcqs_from_transcript(transcript):
 
 
     # -----------------------------------------------------
-    # Build 5 MCQs
+    # Build up to 5 MCQs
     # -----------------------------------------------------
 
     random.seed(42)
@@ -1148,11 +1353,18 @@ def generate_mcqs_from_transcript(transcript):
     generated_mcqs = []
 
 
-    for i, current in enumerate(
-        candidates[:5]
+    for i in range(
+        min(5, len(candidates))
     ):
 
+        current = candidates[i]
+
         correct_answer = current["answer"]
+
+
+        # ---------------------------------------------
+        # Collect wrong answers from ALL candidates
+        # ---------------------------------------------
 
         other_answers = []
 
@@ -1164,7 +1376,9 @@ def generate_mcqs_from_transcript(transcript):
 
                 continue
 
+
             candidate = item["answer"]
+
 
             if (
                 candidate.lower()
@@ -1173,14 +1387,24 @@ def generate_mcqs_from_transcript(transcript):
 
                 continue
 
-            if candidate not in other_answers:
 
-                other_answers.append(
-                    candidate
-                )
+            if candidate.lower() in [
+                x.lower()
+                for x in other_answers
+            ]:
+
+                continue
 
 
-        # Need 3 wrong answers
+            other_answers.append(
+                candidate
+            )
+
+
+        # ---------------------------------------------
+        # Need 3 distractors
+        # ---------------------------------------------
+
         if len(other_answers) < 3:
 
             continue
@@ -1197,7 +1421,10 @@ def generate_mcqs_from_transcript(transcript):
         ]
 
 
-        # Remove duplicates
+        # ---------------------------------------------
+        # Remove duplicate options
+        # ---------------------------------------------
+
         unique_options = []
 
         for option in options:
@@ -1219,10 +1446,19 @@ def generate_mcqs_from_transcript(transcript):
 
         options = unique_options[:4]
 
+
+        # ---------------------------------------------
+        # Shuffle options
+        # ---------------------------------------------
+
         random.shuffle(
             options
         )
 
+
+        # ---------------------------------------------
+        # Find correct option
+        # ---------------------------------------------
 
         correct_index = None
 
@@ -1262,6 +1498,11 @@ def generate_mcqs_from_transcript(transcript):
                     correct_letter
             }
         )
+
+
+        if len(generated_mcqs) >= 5:
+
+            break
 
 
     return generated_mcqs
@@ -1420,9 +1661,14 @@ if video_file is not None:
 
             file_extension = os.path.splitext(
                 video_file.name
-            )[1]
+            )[1].lower()
 
-            if not file_extension:
+            if file_extension not in [
+                ".mp4",
+                ".mov",
+                ".avi",
+                ".mkv"
+            ]:
 
                 file_extension = ".mp4"
 
@@ -1720,7 +1966,7 @@ if st.session_state["transcript"]:
             else:
 
                 st.warning(
-                    "The transcript does not contain enough suitable information to create 4-option MCQs."
+                    "Could not generate enough MCQs from this transcript. Please try a longer lecture."
                 )
 
 
