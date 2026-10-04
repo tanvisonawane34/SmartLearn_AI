@@ -1,6 +1,7 @@
 streamlit
 openai-whisper
 torch
+torchvision
 transformers
 sentencepiece
 reportlab
