@@ -537,8 +537,11 @@ if youtube_url:
                 ydl_opts = {
                     "format": "best[ext=mp4]/best",
                     "outtmpl": "youtube_lecture.%(ext)s",
-                    "js_runtimes": {
-                    "deno": {}
+                    "js_runtimes": {"deno": {}},
+                    "extractor_args": {
+                    "youtube": {
+                    "player_client": ["android_vr", "web_embedded"]
+                    }  
                 }
             }
 
