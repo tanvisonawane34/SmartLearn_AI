@@ -11,6 +11,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from xml.sax.saxutils import escape
 
+# NEW: YouTube transcript
+from youtube_transcript_api import YouTubeTranscriptApi
+
 
 # =========================================================
 # PAGE
@@ -524,86 +527,85 @@ if youtube_url:
 
     if st.button("📥 Process YouTube Video", use_container_width=True):
 
-        youtube_video = None
-
         with st.spinner(
-            "Downloading YouTube video..."
+            "Getting YouTube transcript..."
         ):
 
             try:
 
-                import yt_dlp
-
-                ydl_opts = {
-                    "format": "best[ext=mp4]/best",
-                    "outtmpl": "youtube_lecture.%(ext)s",
-                    "js_runtimes": {"deno": {}},
-                    "extractor_args": {
-                    "youtube": {
-                    "player_client": ["android_vr", "web_embedded"]
-                    }  
-                }
-            }
-
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
-                    info = ydl.extract_info(
-                        youtube_url,
-                        download=True
-                    )
-
-                    youtube_video = ydl.prepare_filename(
-                        info
-                    )
-
-                st.success(
-                    "YouTube video downloaded successfully!"
+                # Extract YouTube video ID
+                match = re.search(
+                    r"(?:v=|youtu\.be/|youtube\.com/shorts/)([A-Za-z0-9_-]{11})",
+                    youtube_url
                 )
+
+                if not match:
+
+                    st.error(
+                        "Please enter a valid YouTube video link."
+                    )
+
+                else:
+
+                    video_id = match.group(1)
+
+                    # Get transcript directly from YouTube captions
+                    youtube_api = YouTubeTranscriptApi()
+
+                    fetched_transcript = youtube_api.fetch(
+                        video_id,
+                        languages=["en", "hi", "mr"]
+                    )
+
+                    # Convert transcript into normal text
+                    transcript = " ".join(
+                        snippet.text
+                        for snippet in fetched_transcript
+                    )
+
+                    if transcript.strip():
+
+                        st.session_state["transcript"] = transcript
+
+                        st.session_state.pop(
+                            "summary",
+                            None
+                        )
+
+                        st.session_state.pop(
+                            "notes",
+                            None
+                        )
+
+                        st.session_state.pop(
+                            "mcqs",
+                            None
+                        )
+
+                        st.session_state.pop(
+                            "revision",
+                            None
+                        )
+
+                        st.success(
+                            "YouTube transcript generated successfully!"
+                        )
+
+                    else:
+
+                        st.warning(
+                            "No transcript was available for this video."
+                        )
 
             except Exception as e:
 
                 st.error(
-                    f"Could not download video: {e}"
+                    "Could not get the YouTube transcript."
                 )
 
-        if youtube_video:
-
-            with st.spinner(
-                "Loading Whisper AI..."
-            ):
-
-                whisper_model = load_whisper()
-
-            with st.spinner(
-                "Converting YouTube speech into text..."
-            ):
-
-                result = whisper_model.transcribe(
-                    youtube_video
+                st.info(
+                    "This video may not have accessible captions."
                 )
-
-                transcript = result["text"]
-
-            st.session_state["transcript"] = transcript
-
-            st.session_state.pop(
-                "summary",
-                None
-            )
-
-            st.session_state.pop(
-                "notes",
-                None
-            )
-
-            st.session_state.pop(
-                "mcqs",
-                None
-            )
-
-            st.success(
-                "YouTube transcript generated successfully!"
-            )
 
 
 # =========================================================
@@ -700,13 +702,12 @@ if "transcript" in st.session_state:
     st.markdown('<div class="section-label">📝 Transcript</div>', unsafe_allow_html=True)
 
     st.text_area(
-    "Generated Transcript",
-    st.session_state["transcript"],
-    height=300
-)
+        "Generated Transcript",
+        st.session_state["transcript"],
+        height=300
+    )
 
     st.divider()
-
 
     # =====================================================
     # SUMMARY
@@ -899,9 +900,11 @@ if "transcript" in st.session_state:
                 )
 
                 if not question:
+
                     continue
 
                 if not correct_answer:
+
                     continue
 
                 possible_answers = []
@@ -909,6 +912,7 @@ if "transcript" in st.session_state:
                 for other_sentence in useful_sentences:
 
                     if other_sentence == sentence:
+
                         continue
 
                     match = re.match(
@@ -958,6 +962,7 @@ if "transcript" in st.session_state:
                                     )
 
                 if len(possible_answers) < 3:
+
                     continue
 
                 wrong_answers = (
