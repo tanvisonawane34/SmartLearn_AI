@@ -6,4 +6,3 @@ sentencepiece
 reportlab
 yt-dlp
 youtube-transcript-api
-
