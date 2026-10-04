@@ -1,146 +1,55 @@
-SmartLearn AI
+# 🎓 SmartLearn AI
 
-Video Summarization & Intelligent Notes Generator
+## 📌 Project Description
+SmartLearn AI is an AI-powered educational application that converts lecture videos and supported YouTube educational videos into useful study material. It uses speech-to-text and NLP models to generate transcripts, summaries, intelligent notes, MCQs, PDF study material, and exam revision content.
 
-SmartLearn AI is a Streamlit-based educational application that converts lecture videos into useful study material.
+## 🔗 Live Demo
+Coming soon...
 
-Features
+## 🛠️ Technologies Used
+- Python
+- Streamlit
+- OpenAI Whisper
+- Hugging Face Transformers
+- DistilBART
+- T5 Question Generation
+- ReportLab
+- yt-dlp
+- FFmpeg
 
-🎥 Upload an educational video
+## 🤖 AI Models Used
+- **Whisper** – Speech-to-text transcription
+- **DistilBART** – Text summarization and notes generation
+- **T5** – Question generation
 
-🔗 Process educational YouTube videos
+## ✨ Features
+- 🎥 Upload educational videos
+- 🔗 Process supported YouTube educational videos
+- 🎙️ Generate video transcripts using Whisper
+- ✨ Generate AI-based summaries
+- 📚 Generate intelligent study notes
+- 🧠 Generate practice MCQs
+- 📄 Generate downloadable PDF study material
+- 🎯 Generate exam revision content
+- 🔄 Start a new lecture without restarting the application
 
-🎙️ Convert speech into text using Whisper AI
+## ⚙️ Project Workflow
 
-✨ Generate an AI-based summary
+1. Video Upload / YouTube Link
+2. Audio Extraction & Processing
+3. Speech-to-Text using Whisper
+4. Transcript Generation
+5. AI Summary Generation
+6. Intelligent Notes Generation
+7. MCQ Generation
+8. PDF Study Material Generation
+9. Exam Revision
 
-📚 Generate intelligent study notes
+## 📁 Project Structure
 
-🧠 Generate MCQs for practice
-
-📄 Generate PDF study material
-
-🎯 Generate exam revision material
-
-🔄 Start a new lecture without restarting the application
-
-Technologies Used
-
-Python
-
-Streamlit
-
-OpenAI Whisper
-
-Hugging Face Transformers
-
-DistilBART
-
-T5 Question Generation
-
-ReportLab
-
-yt-dlp
-
-FFmpeg
-
-Project Workflow
-
-Video / YouTube Link
-        ↓
-   Speech-to-Text
-      (Whisper)
-        ↓
-    Transcript
-        ↓
-   AI Summary
-        ↓
- Intelligent Notes
-        ↓
-      MCQs
-        ↓
-    PDF Study Material
-        ↓
-   Exam Revision
-
-Installation
-
-1. Create and activate a virtual environment
-
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-
-2. Install Python dependencies
-
-pip install -r requirements.txt
-
-3. Install FFmpeg
-
-FFmpeg must be installed separately and available in the system PATH because Whisper uses it to process audio/video.
-
-Check the installation with:
-
-ffmpeg -version
-
-4. Run the application
-
-streamlit run app.py
-
-The application will open in the browser at the local Streamlit address.
-
-How to Use
-
-Open SmartLearn AI.
-
-Paste a YouTube educational video link or upload a video file.
-
-Generate the transcript.
-
-Generate the AI summary.
-
-Generate intelligent notes.
-
-Generate MCQs.
-
-Download the generated PDF study material.
-
-Use Exam Revision for quick revision.
-
-Project Structure
-
-SmartLearn_AI/
-│
-├── app.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-│
-├── assets/
-│   └── logo.png              # Optional
-│
-└── sample_videos/
-    └── test_lecture.mp4      # Optional demo video
-
-Important Notes
-
-The first run may take longer because AI models need to be downloaded.
-
-Whisper requires FFmpeg.
-
-Large video files and downloaded AI models should not be uploaded to GitHub.
-
-Keep API keys and other secrets out of the project repository.
-
-Future Scope
-
-Support for more video sources
-
-Better multilingual transcription and summaries
-
-More advanced question generation
-
-Personalized learning recommendations
-
-Topic-wise progress tracking
-
-Cloud deployment
+```text
+SmartLearn-AI/
+│── app.py
+│── requirements.txt
+│── README.md
+└── .gitignore
